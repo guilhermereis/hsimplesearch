@@ -87,7 +87,7 @@ exeMain = do
     putStrLn $ "Done indexing."
 
 
-    findFile indexed
+    --findFile indexed
 
 
 findFile indexed = do
