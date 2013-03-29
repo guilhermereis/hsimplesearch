@@ -43,12 +43,18 @@ process mx mR = do
               let contents' = map toLower contents
               let splitString = breakInto contents' isDesirableChar (/='-')
               putMVar mR $! toWordFileMap' filename $ toMap $ sort $ toPosition splitString  
+              process mx mR
+
+threadIndexFile :: MVar String -> MVar String -> MVar [(String, [(String, [Integer])])] -> FilePath -> IO [(String, [(String, [Integer])])]
+threadIndexFile m1 m2 mR filename = do
+        indexed <- threadIndexFile' m1 m2 mR filename
+        let x = sort indexed    
+        let x' = groupBy eqFst x
+        return $! toMap2 x'
 
 
-
-
-threadIndexFile :: MVar String -> MVar String -> MVar String -> MVar String -> MVar [(String, [(String, [Integer])])] -> FilePath -> IO [(String, [(String, [Integer])])]
-threadIndexFile m1 m2 m3 m4 mR filename = do
+threadIndexFile' :: MVar String -> MVar String-> MVar [(String, [(String, [Integer])])] -> FilePath -> IO [(String, [(String, [Integer])])]
+threadIndexFile' m1 m2 mR filename = do
         existence <- doesDirectoryExist filename
         if existence then do
             subfiles <- getDirectoryContents filename
@@ -58,24 +64,19 @@ threadIndexFile m1 m2 m3 m4 mR filename = do
         
 
             
-            results <- mapM indexFile realPathSubfiles
+            results <- mapM  (threadIndexFile m1 m2 mR)  realPathSubfiles
             return $! concat results
 
 
         else
             if takeExtension filename == ".txt" then do
+                
                 b1 <- tryPutMVar m1 filename
-                if (b1) 
-                then return [("lala", [("blabla",[1,2,3] )])]
-                else do 
-                        b2 <- tryPutMVar m2 filename
-                        if (b2) 
-                        then return [("lala", [("blabla",[1,2,3] )])]
-                        else do b3 <- tryPutMVar m3 filename
-                                if (b3) then return [("lala", [("blabla",[1,2,3] )])]
-                                        else do 
-                                                putMVar m4 filename
-                                                return [("lala", [("blabla",[1,2,3] )])]
+
+                if (b1) then return [("String", [("String", [1,2])])]
+                        else do 
+                                putMVar m2 filename
+                                return [("String", [("String", [1,2])])]
                 takeMVar mR     
                 
 

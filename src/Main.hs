@@ -72,14 +72,10 @@ exeMain = do
     start <- getCPUTime
     m1 <- newEmptyMVar
     m2 <- newEmptyMVar
-    m3 <- newEmptyMVar
-    m4 <- newEmptyMVar
     mR <- newEmptyMVar
     forkIO $ process m1 mR
     forkIO $ process m2 mR
-    forkIO $ process m3 mR
-    forkIO $ process m4 mR
-    indexed <- threadIndexFile m1 m2 m3 m4 mR selectedFolder
+    indexed <- threadIndexFile m1 m2 mR selectedFolder
     end   <- getCPUTime
     let diff = (end - start) `div` (10^3)
     let queryTime = printf "Time required for indexing: %d nanoseconds." diff
