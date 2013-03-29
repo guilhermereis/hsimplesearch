@@ -14,7 +14,8 @@
 module Search.Indexer (
     indexFile,
     threadIndexFile,
-    process
+    process,
+    repassa
 ) where
 
 import Search.Utils
@@ -25,6 +26,7 @@ import Data.List         (groupBy, sort, isSuffixOf)
 import qualified Control.Exception                                 as Exc
 import System.FilePath
 import Control.Concurrent
+import Control.Monad
 
 -- | Front for the indexing 
 indexFile :: FilePath -> IO [(String, [(String, [Integer])])]
@@ -36,14 +38,44 @@ indexFile filename = do
 
 -- | Performs the actual indexing, organizing how subdirectories are recursively processed 
 -- and how text files are interpreted and indexed, all based on a root FilePath.
+
+repassa mR temp fim resultado = do 
+
+                acabou <- isEmptyMVar fim
+                result <- tryTakeMVar mR
+
+
+
+                -- se tinha alguem para pegar no cesto mR, adiciona ele na bolsa temp e ve se tem mais alguem
+
+                case result of Just coisa -> do
+                                                conteudo <- takeMVar temp
+                                                putMVar temp (conteudo++coisa)
+                                                repassa mR temp fim resultado
+                               Nothing -> if (acabou) then do 
+                                                            acumulado <- takeMVar temp
+                                                            putMVar resultado acumulado
+                                                      else repassa mR temp fim resultado
+
+                --se nao tinha ninguem no cesto mR: 
+                    -- se acabou, retira o valor acumulado de TEMP e coloca na MVar resultado (mResult). (acaba)
+                    -- se nao acabou, tenta de novo
+
+
+
+
+
+
+
+
 process:: MVar String -> MVar [(String, [(String, [Integer])])] -> IO ()
-process mx mR = do
+process mx mR = forever $ do
               filename <- takeMVar mx  
               contents <- Prelude.readFile filename :: IO String
               let contents' = map toLower contents
               let splitString = breakInto contents' isDesirableChar (/='-')
               putMVar mR $! toWordFileMap' filename $ toMap $ sort $ toPosition splitString  
-              process mx mR
+              
 
 threadIndexFile :: MVar String -> MVar String -> MVar [(String, [(String, [Integer])])] -> FilePath -> IO [(String, [(String, [Integer])])]
 threadIndexFile m1 m2 mR filename = do
@@ -77,7 +109,7 @@ threadIndexFile' m1 m2 mR filename = do
                         else do 
                                 putMVar m2 filename
                                 return [("String", [("String", [1,2])])]
-                takeMVar mR     
+                    
                 
 
             else return [] 
