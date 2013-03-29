@@ -12,7 +12,9 @@
 -----------------------------------------------------------------------------
 
 module Search.Indexer (
-    indexFile
+    indexFile,
+    threadIndexFile,
+    process
 ) where
 
 import Search.Utils
@@ -22,18 +24,65 @@ import Data.Char         (isAlphaNum, toLower)
 import Data.List         (groupBy, sort, isSuffixOf)
 import qualified Control.Exception                                 as Exc
 import System.FilePath
-
+import Control.Concurrent
 
 -- | Front for the indexing 
 indexFile :: FilePath -> IO [(String, [(String, [Integer])])]
 indexFile filename = do
         indexed <- indexFile' filename
-        let x = sort indexed
+        let x = sort indexed    
         let x' = groupBy eqFst x
         return $! toMap2 x'
 
 -- | Performs the actual indexing, organizing how subdirectories are recursively processed 
 -- and how text files are interpreted and indexed, all based on a root FilePath.
+process:: MVar String -> MVar [(String, [(String, [Integer])])] -> IO ()
+process mx mR = do
+              filename <- takeMVar mx  
+              contents <- Prelude.readFile filename :: IO String
+              let contents' = map toLower contents
+              let splitString = breakInto contents' isDesirableChar (/='-')
+              putMVar mR $! toWordFileMap' filename $ toMap $ sort $ toPosition splitString  
+
+
+
+
+threadIndexFile :: MVar String -> MVar String -> MVar String -> MVar String -> MVar [(String, [(String, [Integer])])] -> FilePath -> IO [(String, [(String, [Integer])])]
+threadIndexFile m1 m2 m3 m4 mR filename = do
+        existence <- doesDirectoryExist filename
+        if existence then do
+            subfiles <- getDirectoryContents filename
+            let cleanSubfiles = filter (not . (`elem` [".",".."])) subfiles
+            let realPathSubfiles = map (filename </>) cleanSubfiles
+
+        
+
+            
+            results <- mapM indexFile realPathSubfiles
+            return $! concat results
+
+
+        else
+            if takeExtension filename == ".txt" then do
+                b1 <- tryPutMVar m1 filename
+                if (b1) 
+                then return [("lala", [("blabla",[1,2,3] )])]
+                else do 
+                        b2 <- tryPutMVar m2 filename
+                        if (b2) 
+                        then return [("lala", [("blabla",[1,2,3] )])]
+                        else do b3 <- tryPutMVar m3 filename
+                                if (b3) then return [("lala", [("blabla",[1,2,3] )])]
+                                        else do 
+                                                putMVar m4 filename
+                                                return [("lala", [("blabla",[1,2,3] )])]
+                takeMVar mR     
+                
+
+            else return [] 
+
+
+
 indexFile' :: FilePath -> IO [(String, [(String, [Integer])])]
 indexFile' filename = do
         existence <- doesDirectoryExist filename

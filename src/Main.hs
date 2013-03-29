@@ -28,7 +28,7 @@ import System.CPUTime
 import System.Console.GetOpt
 import System.Environment (getArgs)
 import Text.Printf
-
+import Control.Concurrent
 
 -- == Command-line options ==
 
@@ -69,7 +69,23 @@ exeMain = do
     let selectedFolder = if null folder then "."
                          else head folder
     putStrLn $ "Indexing folder "++show selectedFolder++"..."
-    indexed <- indexFile selectedFolder
+    start <- getCPUTime
+    m1 <- newEmptyMVar
+    m2 <- newEmptyMVar
+    m3 <- newEmptyMVar
+    m4 <- newEmptyMVar
+    mR <- newEmptyMVar
+    forkIO $ process m1 mR
+    forkIO $ process m2 mR
+    forkIO $ process m3 mR
+    forkIO $ process m4 mR
+    indexed <- threadIndexFile m1 m2 m3 m4 mR selectedFolder
+    end   <- getCPUTime
+    let diff = (end - start) `div` (10^3)
+    let queryTime = printf "Time required for indexing: %d nanoseconds." diff
+    putStrLn $ queryTime 
+    putStrLn $ "Done indexing."
+
 
     findFile indexed
 
