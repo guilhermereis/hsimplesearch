@@ -76,21 +76,24 @@ exeMain = do
 
     fim <- newEmptyMVar
 
-    temp <- newMVar []
 
 
     mResult <- newEmptyMVar
 
-    forkIO $ process m1 mR
-    forkIO $ process m2 mR
+    forkIO $ process 1 m1 mR
+    forkIO $ process 2 m2 mR
 
 
-    t1 <- forkIO $ repassa mR temp fim mResult
+    t1 <- forkIO $ repassa mR [] fim mResult
 
 
+    putStrLn "aqui eu cheguei."
     --indexed <- threadIndexFile m1 m2 mR selectedFolder
     threadIndexFile m1 m2 mR selectedFolder
 
+    putStrLn "mas aqui nao."
+
+    threadDelay 15000000
     putMVar fim "algo"
 
 
@@ -100,15 +103,18 @@ exeMain = do
 
 
 
+
+
+
     
     end   <- getCPUTime
     let diff = (end - start) `div` (10^3)
     let queryTime = printf "Time required for indexing: %d nanoseconds." diff
     putStrLn $ queryTime 
-    putStrLn $ "Done indexing."
+    putStrLn $ "Done indexing. Length indexed: " ++ show (length indexed)
 
 
-    --findFile indexed
+    findFile indexed
 
 
 findFile indexed = do

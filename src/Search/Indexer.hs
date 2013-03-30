@@ -49,12 +49,11 @@ repassa mR temp fim resultado = do
                 -- se tinha alguem para pegar no cesto mR, adiciona ele na bolsa temp e ve se tem mais alguem
 
                 case result of Just coisa -> do
-                                                conteudo <- takeMVar temp
-                                                putMVar temp (conteudo++coisa)
-                                                repassa mR temp fim resultado
+                                                putStrLn "aqui1"
+                                                repassa mR  (temp++coisa) fim resultado
                                Nothing -> if (acabou) then do 
-                                                            acumulado <- takeMVar temp
-                                                            putMVar resultado acumulado
+                                                            putMVar resultado temp
+                                                            putStrLn "aqui2"
                                                       else repassa mR temp fim resultado
 
                 --se nao tinha ninguem no cesto mR: 
@@ -68,13 +67,19 @@ repassa mR temp fim resultado = do
 
 
 
-process:: MVar String -> MVar [(String, [(String, [Integer])])] -> IO ()
-process mx mR = forever $ do
-              filename <- takeMVar mx  
-              contents <- Prelude.readFile filename :: IO String
-              let contents' = map toLower contents
-              let splitString = breakInto contents' isDesirableChar (/='-')
-              putMVar mR $! toWordFileMap' filename $ toMap $ sort $ toPosition splitString  
+process:: Int -> MVar String -> MVar [(String, [(String, [Integer])])] -> IO ()
+process id mx mR = do
+              filename' <- tryTakeMVar mx
+              case filename' of Just filename -> do
+                                                putStrLn $ "tirou "++ filename ++" de "++ show id
+                                                contents <- Prelude.readFile filename :: IO String
+                                                let contents' = map toLower contents
+                                                let splitString = breakInto contents' isDesirableChar (/='-')
+                                                tryPutMVar mR $! toWordFileMap' filename $ toMap $ sort $ toPosition splitString
+                                                process id mx mR
+                                Nothing -> process id mx mR
+
+                
               
 
 threadIndexFile :: MVar String -> MVar String -> MVar [(String, [(String, [Integer])])] -> FilePath -> IO [(String, [(String, [Integer])])]
@@ -105,10 +110,13 @@ threadIndexFile' m1 m2 mR filename = do
                 
                 b1 <- tryPutMVar m1 filename
 
-                if (b1) then return [("String", [("String", [1,2])])]
-                        else do 
-                                putMVar m2 filename
+                if (b1) then do putStrLn "botou em m1"
                                 return [("String", [("String", [1,2])])]
+                        else do 
+                                b2 <- tryPutMVar m2 filename
+                                if (b2) then  do putStrLn "botou em m2"
+                                                 return [("String", [("String", [1,2])])]
+                                        else threadIndexFile' m1 m2 mR filename
                     
                 
 
