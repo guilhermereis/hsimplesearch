@@ -93,7 +93,7 @@ exeMain = do
 
     putStrLn "mas aqui nao."
 
-    threadDelay 15000000
+    --threadDelay 15000000
     putMVar fim "algo"
 
 
