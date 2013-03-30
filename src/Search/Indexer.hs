@@ -15,7 +15,8 @@ module Search.Indexer (
     indexFile,
     threadIndexFile,
     process,
-    repassa
+    repassa,
+    addFile
 ) where
 
 import Search.Utils
@@ -43,8 +44,14 @@ repassa mR temp fim resultado = do
                 -- se tinha alguem para pegar no cesto mR, adiciona ele na bolsa temp e ve se tem mais alguem
 
                 case result of Just coisa -> do
-                                                putStrLn "aqui1"
-                                                repassa mR  (temp++coisa) fim resultado
+                                                if (fst (head coisa) == "FIM")
+                                                then do 
+                                                    putStrLn "acabou mesmo!"
+                                                    putMVar fim "acabou mesmo."
+                                                    repassa mR  (temp) fim resultado
+                                                else do
+                                                    putStrLn "aqui1"
+                                                    repassa mR  (temp++coisa) fim resultado
                                Nothing -> if (not running) then do 
                                                             let x = sort temp    
                                                             let x' = groupBy eqFst x
@@ -61,7 +68,7 @@ repassa mR temp fim resultado = do
 
 
 
-addFile :: MVar a -> a -> IO ()
+
 addFile m valor = do
                     b1 <- tryPutMVar m valor
                     if (b1) then return ()

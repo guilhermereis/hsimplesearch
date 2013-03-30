@@ -94,8 +94,9 @@ exeMain = do
     putStrLn "mas aqui nao."
 
     --threadDelay 15000000
-    putMVar fim "algo"
+    --putMVar fim "algo"
 
+    addFile mR [("FIM", [("String", [1, 2])])]
 
 
     indexed <- takeMVar mResult
