@@ -51,7 +51,7 @@ repassa mR temp fim resultado = do
                 case result of Just coisa -> do
                                                 putStrLn "aqui1"
                                                 repassa mR  (temp++coisa) fim resultado
-                               Nothing -> if (acabou) then do 
+                               Nothing -> if (not acabou) then do 
                                                             putMVar resultado temp
                                                             putStrLn "aqui2"
                                                       else repassa mR temp fim resultado
