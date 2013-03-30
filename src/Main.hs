@@ -96,8 +96,6 @@ exeMain = do
     threadDelay 15000000
     putMVar fim "algo"
 
-
-
     indexed <- takeMVar mResult
 
 
