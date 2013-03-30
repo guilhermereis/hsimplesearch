@@ -74,7 +74,12 @@ process id mx mR fim = do
               case filename' of Just filename -> do
                                                 putStrLn $ "tirou "++filename++" de m"++ show id
 
-                                                --aqui que tem que decidir se acabou ou nao!
+                                                --se alguma thread processar FIM.txt, avisa a todo mundo
+                                                --para parar a execução. O problema é se quando essa thread
+                                                --que pegar FIM.txt executar ainda tiver outra thread, que
+                                                --pegou outro arquivo, querendo botar a resposta no gargalo
+                                                --mR. Aí a thread "repassa" vai acabar sem ter pego essa resposta
+                                                
                                                 if (filename == "FIM.txt") then do
                                                                               putMVar fim "acabousse!"
                                                                               addFile mR [("FIM", [])]
