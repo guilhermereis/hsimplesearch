@@ -31,8 +31,7 @@ import Control.Monad
 
 
 
--- | Performs the actual indexing, organizing how subdirectories are recursively processed 
--- and how text files are interpreted and indexed, all based on a root FilePath.
+
 
 repassa mR temp fim resultado = do 
 
@@ -44,14 +43,8 @@ repassa mR temp fim resultado = do
                 -- se tinha alguem para pegar no cesto mR, adiciona ele na bolsa temp e ve se tem mais alguem
 
                 case result of Just coisa -> do
-                                                if (fst (head coisa) == "FIM")
-                                                then do 
-                                                    putStrLn "acabou mesmo!"
-                                                    putMVar fim "acabou mesmo."
-                                                    repassa mR  (temp) fim resultado
-                                                else do
-                                                    putStrLn "aqui1"
-                                                    repassa mR  (temp++coisa) fim resultado
+                                                putStrLn "aqui1"
+                                                repassa mR  (temp++coisa) fim resultado
                                Nothing -> if (not running) then do 
                                                             let x = sort temp    
                                                             let x' = groupBy eqFst x
@@ -75,40 +68,58 @@ addFile m valor = do
                             else addFile m valor
 
 
-process:: Int -> MVar String -> MVar [(String, [(String, [Integer])])] -> IO ()
-process id mx mR = do
+process:: Int -> MVar String -> MVar [(String, [(String, [Integer])])] -> MVar String-> IO ()
+process id mx mR fim = do
               filename' <- tryTakeMVar mx
               case filename' of Just filename -> do
-                                                putStrLn $ "tirou "++ filename ++" de m"++ show id
+                                                putStrLn $ "tirou "++filename++" de m"++ show id
+
+                                                --aqui que tem que decidir se acabou ou nao!
+                                                if (filename == "FIM.txt") then do
+                                                                              putMVar fim "acabousse!"
+                                                                              process id mx mR fim
+                                                                           else 
+                                                                              return ()
+
+
                                                 contents <- Prelude.readFile filename :: IO String
                                                 let contents' = map toLower contents
                                                 let splitString = breakInto contents' isDesirableChar (/='-')
                                                 addFile mR $! toWordFileMap' filename $ toMap $ sort $ toPosition splitString
-                                                process id mx mR
-                                Nothing -> process id mx mR
+                                                process id mx mR fim
+                                Nothing -> do
+                                            process id mx mR fim
 
                 
               
 
-threadIndexFile :: MVar String -> MVar String -> MVar [(String, [(String, [Integer])])] -> FilePath -> IO ()
-threadIndexFile m1 m2 mR filename = do
-        threadIndexFile' m1 m2 mR filename
+threadIndexFile :: Int -> MVar String -> MVar String -> MVar [(String, [(String, [Integer])])] -> FilePath -> IO ()
+threadIndexFile cont m1 m2 mR filename = do
+        threadIndexFile' cont m1 m2 mR filename
         return ()
 
 
-threadIndexFile' :: MVar String -> MVar String-> MVar [(String, [(String, [Integer])])] -> FilePath -> IO ()
-threadIndexFile' m1 m2 mR filename = do
+threadIndexFile' :: Int -> MVar String -> MVar String-> MVar [(String, [(String, [Integer])])] -> FilePath -> IO ()
+threadIndexFile' cont m1 m2 mR filename = do
         existence <- doesDirectoryExist filename
         if existence then do
             subfiles <- getDirectoryContents filename
             let cleanSubfiles = filter (not . (`elem` [".",".."])) subfiles
-            let realPathSubfiles = map (filename </>) cleanSubfiles
+            
 
         
-
+            if (cont == 0 ) then do 
+                    let realPathSubfiles' = map (filename </>) cleanSubfiles
+                    let realPathSubfiles = realPathSubfiles' ++ ["FIM.txt"]
+                    putStrLn "adicionei FIM.txt"
+                    results <- mapM  (threadIndexFile 1 m1 m2 mR)  realPathSubfiles
+                    return ()
+            else do
+                    let realPathSubfiles = map (filename </>) cleanSubfiles
+                    results <- mapM  (threadIndexFile 1 m1 m2 mR)  realPathSubfiles
+                    return ()
             
-            results <- mapM  (threadIndexFile m1 m2 mR)  realPathSubfiles
-            return ()
+            
 
 
         else
@@ -116,13 +127,13 @@ threadIndexFile' m1 m2 mR filename = do
                 
                 b1 <- tryPutMVar m1 filename
 
-                if (b1) then do putStrLn "botou em m1"
+                if (b1) then do putStrLn $ "botou em m1"
                                 return ()
                         else do 
                                 b2 <- tryPutMVar m2 filename
-                                if (b2) then  do putStrLn "botou em m2"
+                                if (b2) then  do putStrLn $ "botou em m2"
                                                  return ()
-                                        else threadIndexFile' m1 m2 mR filename
+                                        else threadIndexFile' 1 m1 m2 mR filename
                     
                 
 

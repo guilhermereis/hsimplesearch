@@ -80,8 +80,8 @@ exeMain = do
 
     mResult <- newEmptyMVar
 
-    forkIO $ process 1 m1 mR
-    forkIO $ process 2 m2 mR
+    forkIO $ process 1 m1 mR fim
+    forkIO $ process 2 m2 mR fim
 
 
     t1 <- forkIO $ repassa mR [] fim mResult
@@ -89,14 +89,14 @@ exeMain = do
 
     putStrLn "aqui eu cheguei."
     --indexed <- threadIndexFile m1 m2 mR selectedFolder
-    threadIndexFile m1 m2 mR selectedFolder
+    threadIndexFile 0 m1 m2 mR selectedFolder
 
     putStrLn "mas aqui nao."
 
     --threadDelay 15000000
     --putMVar fim "algo"
 
-    addFile mR [("FIM", [("String", [1, 2])])]
+    --addFile mR [("FIM", [("String", [1, 2])])]
 
 
     indexed <- takeMVar mResult
