@@ -83,15 +83,13 @@ process id mx mR = do
                 
               
 
-threadIndexFile :: MVar String -> MVar String -> MVar [(String, [(String, [Integer])])] -> FilePath -> IO [(String, [(String, [Integer])])]
+threadIndexFile :: MVar String -> MVar String -> MVar [(String, [(String, [Integer])])] -> FilePath -> IO ()
 threadIndexFile m1 m2 mR filename = do
-        indexed <- threadIndexFile' m1 m2 mR filename
-        let x = sort indexed    
-        let x' = groupBy eqFst x
-        return $! toMap2 x'
+        threadIndexFile' m1 m2 mR filename
+        return ()
 
 
-threadIndexFile' :: MVar String -> MVar String-> MVar [(String, [(String, [Integer])])] -> FilePath -> IO [(String, [(String, [Integer])])]
+threadIndexFile' :: MVar String -> MVar String-> MVar [(String, [(String, [Integer])])] -> FilePath -> IO ()
 threadIndexFile' m1 m2 mR filename = do
         existence <- doesDirectoryExist filename
         if existence then do
@@ -103,7 +101,7 @@ threadIndexFile' m1 m2 mR filename = do
 
             
             results <- mapM  (threadIndexFile m1 m2 mR)  realPathSubfiles
-            return $! concat results
+            return ()
 
 
         else
@@ -112,16 +110,16 @@ threadIndexFile' m1 m2 mR filename = do
                 b1 <- tryPutMVar m1 filename
 
                 if (b1) then do putStrLn "botou em m1"
-                                return [("String", [("String", [1,2])])]
+                                return ()
                         else do 
                                 b2 <- tryPutMVar m2 filename
                                 if (b2) then  do putStrLn "botou em m2"
-                                                 return [("String", [("String", [1,2])])]
+                                                 return ()
                                         else threadIndexFile' m1 m2 mR filename
                     
                 
 
-            else return [] 
+            else return () 
 
 -- | Front for the indexing 
 indexFile :: FilePath -> IO [(String, [(String, [Integer])])]

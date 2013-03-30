@@ -111,7 +111,7 @@ exeMain = do
     let diff = (end - start) `div` (10^3)
     let queryTime = printf "Time required for indexing: %d nanoseconds." diff
     putStrLn $ queryTime 
-    putStrLn $ "Done indexing. Length indexed: " ++ show (length indexed)
+    putStrLn $ "Done indexing. "--Length indexed: " ++ show (length indexed)"
 
 
     findFile indexed
