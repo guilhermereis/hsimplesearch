@@ -77,6 +77,7 @@ process id mx mR fim = do
                                                 --aqui que tem que decidir se acabou ou nao!
                                                 if (filename == "FIM.txt") then do
                                                                               putMVar fim "acabousse!"
+                                                                              addFile mR [("FIM", [])]
                                                                               process id mx mR fim
                                                                            else 
                                                                               return ()
