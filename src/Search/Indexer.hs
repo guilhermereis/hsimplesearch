@@ -28,20 +28,14 @@ import System.FilePath
 import Control.Concurrent
 import Control.Monad
 
--- | Front for the indexing 
-indexFile :: FilePath -> IO [(String, [(String, [Integer])])]
-indexFile filename = do
-        indexed <- indexFile' filename
-        let x = sort indexed    
-        let x' = groupBy eqFst x
-        return $! toMap2 x'
+
 
 -- | Performs the actual indexing, organizing how subdirectories are recursively processed 
 -- and how text files are interpreted and indexed, all based on a root FilePath.
 
 repassa mR temp fim resultado = do 
 
-                acabou <- isEmptyMVar fim
+                running <- isEmptyMVar fim
                 result <- tryTakeMVar mR
 
 
@@ -51,8 +45,11 @@ repassa mR temp fim resultado = do
                 case result of Just coisa -> do
                                                 putStrLn "aqui1"
                                                 repassa mR  (temp++coisa) fim resultado
-                               Nothing -> if (not acabou) then do 
-                                                            putMVar resultado temp
+                               Nothing -> if (not running) then do 
+                                                            let x = sort temp    
+                                                            let x' = groupBy eqFst x
+                                                            temp1 <- return $! toMap2 x'
+                                                            putMVar resultado temp1
                                                             putStrLn "aqui2"
                                                       else repassa mR temp fim resultado
 
@@ -64,18 +61,22 @@ repassa mR temp fim resultado = do
 
 
 
-
+addFile :: MVar a -> a -> IO ()
+addFile m valor = do
+                    b1 <- tryPutMVar m valor
+                    if (b1) then return ()
+                            else addFile m valor
 
 
 process:: Int -> MVar String -> MVar [(String, [(String, [Integer])])] -> IO ()
 process id mx mR = do
               filename' <- tryTakeMVar mx
               case filename' of Just filename -> do
-                                                putStrLn $ "tirou "++ filename ++" de "++ show id
+                                                putStrLn $ "tirou "++ filename ++" de m"++ show id
                                                 contents <- Prelude.readFile filename :: IO String
                                                 let contents' = map toLower contents
                                                 let splitString = breakInto contents' isDesirableChar (/='-')
-                                                tryPutMVar mR $! toWordFileMap' filename $ toMap $ sort $ toPosition splitString
+                                                addFile mR $! toWordFileMap' filename $ toMap $ sort $ toPosition splitString
                                                 process id mx mR
                                 Nothing -> process id mx mR
 
@@ -122,7 +123,13 @@ threadIndexFile' m1 m2 mR filename = do
 
             else return [] 
 
-
+-- | Front for the indexing 
+indexFile :: FilePath -> IO [(String, [(String, [Integer])])]
+indexFile filename = do
+        indexed <- indexFile' filename
+        let x = sort indexed    
+        let x' = groupBy eqFst x
+        return $! toMap2 x'
 
 indexFile' :: FilePath -> IO [(String, [(String, [Integer])])]
 indexFile' filename = do
