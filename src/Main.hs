@@ -63,7 +63,14 @@ options =
           "Number of concurrent threads for querying (default 3)"]
 
 -- == end of options parsing code ==
-
+waitThreads :: MVar Int -> IO ()
+waitThreads fim = do
+                     f <- takeMVar fim
+                     if (f > 0) then do 
+                        putMVar fim f
+                        waitThreads fim
+                     else
+                        return ()
 exeMain = do
     (folder, indexThreads, queryThreads) <- parseArgs
     let selectedFolder = if null folder then "."
@@ -74,22 +81,25 @@ exeMain = do
     m2 <- newEmptyMVar
     mR <- newEmptyMVar
 
-    fim <- newEmptyMVar
+    countDownLatch <- newEmptyMVar
+
+    fim <- newMVar 2
 
 
 
     mResult <- newEmptyMVar
 
-    forkIO $ process 1 m1 mR fim
-    forkIO $ process 2 m2 mR fim
+    forkIO $ process countDownLatch 1 m1 mR fim
+    forkIO $ process countDownLatch 2 m2 mR fim
 
 
-    t1 <- forkIO $ repassa mR [] fim mResult
+
+    t1 <- forkIO $ repassa countDownLatch mR [] fim mResult
 
 
     putStrLn "aqui eu cheguei."
     --indexed <- threadIndexFile m1 m2 mR selectedFolder
-    threadIndexFile 0 m1 m2 mR selectedFolder
+    threadIndexFile countDownLatch 0 m1 m2 mR selectedFolder
 
     putStrLn "mas aqui nao."
 

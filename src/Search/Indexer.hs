@@ -33,25 +33,28 @@ import Control.Monad
 
 
 
-repassa mR temp fim resultado = do 
+repassa countdownLatch mR temp fim resultado = do 
 
-                running <- isEmptyMVar fim
+                c <- takeMVar countdownLatch
+                putMVar countdownLatch c
+                let acabou = c == 0
+
                 result <- tryTakeMVar mR
-
-
-
                 -- se tinha alguem para pegar no cesto mR, adiciona ele na bolsa temp e ve se tem mais alguem
 
                 case result of Just coisa -> do
                                                 putStrLn "aqui1"
-                                                repassa mR  (temp++coisa) fim resultado
-                               Nothing -> if (not running) then do 
-                                                            let x = sort temp    
+                                                c<- takeMVar countdownLatch 
+                                                putMVar countdownLatch (c-1)
+                                                repassa countdownLatch mR  (temp++coisa) fim resultado
+                               Nothing -> if (acabou) then do 
+                                                            putStrLn "aqui2"
+                                                            let x = sort (temp)                                                            
                                                             let x' = groupBy eqFst x
                                                             temp1 <- return $! toMap2 x'
                                                             putMVar resultado temp1
-                                                            putStrLn "aqui2"
-                                                      else repassa mR temp fim resultado
+                                                            putStrLn "chegou final do aqui2"
+                                                      else repassa countdownLatch mR temp fim resultado
 
                 --se nao tinha ninguem no cesto mR: 
                     -- se acabou, retira o valor acumulado de TEMP e coloca na MVar resultado (mResult). (acaba)
@@ -68,8 +71,8 @@ addFile m valor = do
                             else addFile m valor
 
 
-process:: Int -> MVar String -> MVar [(String, [(String, [Integer])])] -> MVar String-> IO ()
-process id mx mR fim = do
+process:: MVar Int -> Int -> MVar String -> MVar [(String, [(String, [Integer])])] -> MVar Int-> IO ()
+process countdownLatch id mx mR fim = do
               filename' <- tryTakeMVar mx
               case filename' of Just filename -> do
                                                 putStrLn $ "tirou "++filename++" de m"++ show id
@@ -81,9 +84,8 @@ process id mx mR fim = do
                                                 --mR. Aí a thread "repassa" vai acabar sem ter pego essa resposta
                                                 
                                                 if (filename == "FIM.txt") then do
-                                                                              putMVar fim "acabousse!"
                                                                               addFile mR [("FIM", [])]
-                                                                              process id mx mR fim
+                                                                              process countdownLatch id mx mR fim
                                                                            else 
                                                                               return ()
 
@@ -92,21 +94,21 @@ process id mx mR fim = do
                                                 let contents' = map toLower contents
                                                 let splitString = breakInto contents' isDesirableChar (/='-')
                                                 addFile mR $! toWordFileMap' filename $ toMap $ sort $ toPosition splitString
-                                                process id mx mR fim
+                                                process countdownLatch id mx mR fim
                                 Nothing -> do
-                                            process id mx mR fim
+                                            process countdownLatch id mx mR fim
 
                 
               
 
-threadIndexFile :: Int -> MVar String -> MVar String -> MVar [(String, [(String, [Integer])])] -> FilePath -> IO ()
-threadIndexFile cont m1 m2 mR filename = do
-        threadIndexFile' cont m1 m2 mR filename
+threadIndexFile :: MVar Int -> Int -> MVar String -> MVar String -> MVar [(String, [(String, [Integer])])] -> FilePath -> IO ()
+threadIndexFile countdownLatch cont m1 m2 mR filename = do
+        threadIndexFile' countdownLatch cont m1 m2 mR filename
         return ()
 
 
-threadIndexFile' :: Int -> MVar String -> MVar String-> MVar [(String, [(String, [Integer])])] -> FilePath -> IO ()
-threadIndexFile' cont m1 m2 mR filename = do
+threadIndexFile' :: MVar Int -> Int -> MVar String -> MVar String-> MVar [(String, [(String, [Integer])])] -> FilePath -> IO ()
+threadIndexFile' countdownLatch cont m1 m2 mR filename = do
         existence <- doesDirectoryExist filename
         if existence then do
             subfiles <- getDirectoryContents filename
@@ -118,11 +120,13 @@ threadIndexFile' cont m1 m2 mR filename = do
                     let realPathSubfiles' = map (filename </>) cleanSubfiles
                     let realPathSubfiles = realPathSubfiles' ++ ["FIM.txt"]
                     putStrLn "adicionei FIM.txt"
-                    results <- mapM  (threadIndexFile 1 m1 m2 mR)  realPathSubfiles
+                    putMVar countdownLatch 15
+                    putStrLn $ "length = "++ show (length realPathSubfiles)
+                    results <- mapM  (threadIndexFile countdownLatch 1 m1 m2 mR)  realPathSubfiles
                     return ()
             else do
                     let realPathSubfiles = map (filename </>) cleanSubfiles
-                    results <- mapM  (threadIndexFile 1 m1 m2 mR)  realPathSubfiles
+                    results <- mapM  (threadIndexFile countdownLatch 1 m1 m2 mR)  realPathSubfiles
                     return ()
             
             
@@ -139,7 +143,7 @@ threadIndexFile' cont m1 m2 mR filename = do
                                 b2 <- tryPutMVar m2 filename
                                 if (b2) then  do putStrLn $ "botou em m2"
                                                  return ()
-                                        else threadIndexFile' 1 m1 m2 mR filename
+                                        else threadIndexFile' countdownLatch 1 m1 m2 mR filename
                     
                 
 
