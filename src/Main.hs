@@ -81,13 +81,24 @@ exeMain = do
     m2 <- newEmptyMVar
     mR <- newEmptyMVar
 
-    countDownLatch <- newEmptyMVar
+    countDownLatch <- newMVar 0
 
     fim <- newMVar 2
 
 
 
     mResult <- newEmptyMVar
+
+
+    numFiles countDownLatch selectedFolder
+
+    c <- takeMVar countDownLatch
+    --esse +1 é o FIM.txt
+    putMVar countDownLatch (c+1)
+
+    putStr $ "NUMERO DE ARQUIVOS = "++show (c+1)
+
+
 
     forkIO $ process countDownLatch 1 m1 mR fim
     forkIO $ process countDownLatch 2 m2 mR fim

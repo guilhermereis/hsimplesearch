@@ -16,7 +16,8 @@ module Search.Indexer (
     threadIndexFile,
     process,
     repassa,
-    addFile
+    addFile,
+    numFiles
 ) where
 
 import Search.Utils
@@ -120,7 +121,6 @@ threadIndexFile' countdownLatch cont m1 m2 mR filename = do
                     let realPathSubfiles' = map (filename </>) cleanSubfiles
                     let realPathSubfiles = realPathSubfiles' ++ ["FIM.txt"]
                     putStrLn "adicionei FIM.txt"
-                    putMVar countdownLatch 15
                     putStrLn $ "length = "++ show (length realPathSubfiles)
                     results <- mapM  (threadIndexFile countdownLatch 1 m1 m2 mR)  realPathSubfiles
                     return ()
@@ -148,6 +148,41 @@ threadIndexFile' countdownLatch cont m1 m2 mR filename = do
                 
 
             else return () 
+
+
+
+-- | Front for the indexing 
+numFiles :: MVar Int -> FilePath -> IO ()
+numFiles contador filename = do
+        numFiles' contador filename
+        return ()
+
+numFiles' :: MVar Int -> FilePath -> IO ()
+numFiles' contador filename = do
+        existence <- doesDirectoryExist filename
+        if existence then do
+            subfiles <- getDirectoryContents filename
+            let cleanSubfiles = filter (not . (`elem` [".",".."])) subfiles
+            let realPathSubfiles = map (filename </>) cleanSubfiles
+            results <- mapM (numFiles contador) realPathSubfiles
+            return ()
+        else
+            if takeExtension filename == ".txt" then do
+                c <- takeMVar contador
+                putMVar contador (c+1)
+                return ()    
+            else 
+                return ()
+
+
+
+
+
+
+
+
+
+
 
 -- | Front for the indexing 
 indexFile :: FilePath -> IO [(String, [(String, [Integer])])]
